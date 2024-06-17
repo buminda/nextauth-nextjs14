@@ -6,6 +6,21 @@ import React from "react";
 const Dashboard = () => {
   const { data: session } = useSession();
 
+  const handleSignOut = async () => {
+    console.log('SDSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS');
+    if (session?.provider === 'keycloak') {
+      await fetch('/api/auth/logout-keycloak')
+        .then(() => {
+          signOut({ callbackUrl: '/' });
+        })
+        .catch((error) => {
+          console.error('Error logging out from Keycloak:', error);
+        });
+    } else {
+      signOut({ callbackUrl: '/' });
+    }
+  };
+
   return (
     <>
       {session ? (
@@ -24,6 +39,13 @@ const Dashboard = () => {
           >
             Sign Out
           </button>
+          <button
+            onClick={handleSignOut}
+            className="border border-black rounded-lg bg-red-400 px-5 py-1"
+          >
+            Sign Out KC
+          </button>
+          
         </>
       ) : (
         <>
@@ -42,6 +64,12 @@ const Dashboard = () => {
               className="border border-black rounded-lg bg-green-500 px-5 py-1"
             >
               Sign in with GitHub
+            </button>
+            <button
+              onClick={() => signIn("keycloak")}
+              className="border border-black rounded-lg bg-green-500 px-5 py-1"
+            >
+              Sign in with KC
             </button>
           </div>
         </>

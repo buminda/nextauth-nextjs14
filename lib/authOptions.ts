@@ -3,7 +3,9 @@ import { NextAuthOptions } from "next-auth";
 
 import GithubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
+import KeycloakProvider from "next-auth/providers/keycloak";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { Session } from "inspector";
 //import clientPromise from "@/lib/MongodbClient";
 
 export const authOptions: NextAuthOptions = {
@@ -18,6 +20,14 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+    }),
+    KeycloakProvider({
+      clientId: process.env.KEYCLOAK_CLIENT_ID as string,
+      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET as string,
+      issuer: process.env.KEYCLOAK_ISSUER as string,
+      // authorization: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/auth`,
+      // token: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
+      // userinfo: `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/userinfo`,      
     }),
     CredentialsProvider({
       name: "Credentials",
@@ -53,11 +63,29 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    jwt: async ({ user, token, trigger, session }) => {
+    jwt: async ({ user, token, account, trigger, session }) => {
+      if (account) {
+        token.provider = account.provider;
+        token.id_token = account.id_token;
+      }
       if (trigger === "update") {
         return { ...token, ...session.user };
       }
       return { ...token, ...user };
     },
+    session: async ({session, token}) =>{
+      session.provider = token.provider;
+      return session;
+    },
+
   },
+  events :{
+    signOut: async ({token})=>{
+      if (token.provider === 'keycloak') {
+        const keycloakLogoutUrl = `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/logout?post_logout_redirect_uri=${process.env.NEXTAUTH_URL}&id_token_hint=${token.id_token}`;
+        await fetch(keycloakLogoutUrl);
+      }
+    }
+  }
+  
 };
